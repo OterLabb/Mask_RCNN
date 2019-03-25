@@ -2,26 +2,23 @@ import os
 import sys
 import json
 import numpy as np
-import time
 from PIL import Image, ImageDraw
-from imgaug import augmenters as iaa
+import tensorflow as tf
 
 '''
-Basic training script using a coco format input 
-
-Base code from:
-https://github.com/akTwelve/tutorials/blob/master/mask_rcnn/MaskRCNN_TrainAndInference.ipynb
-
+This script calculates a mAP @ IoU on the validation image set
 1. Change ROOT_DIR to folder containing the maskrcnn folder
 2. Change COCO_DIR to ArcGIS output folder
-3. Change MODEL_DIR to a location with free space
-4. Put a pre-trained coco weight file in the ROOT_DIR or change accordingly 
-5. Run
+3. Change Model_Name to the trained weights
+4. run
 '''
 
 # Set the ROOT_DIR variable to the root directory of the Mask_RCNN git repo
 ROOT_DIR = r'C:\Users\OterLabb\Documents\Mask_RCNN'
-COCO_DIR = r'F:\ArcGIS\Semester_Log\OUT_RGB_INT_DSM' # ArcGIS folder containing output from the ArcGIS2Coco.py script
+COCO_DIR = r'F:\ArcGIS\Semester_Log\OUT_RGB' # ArcGIS folder containing output from the ArcGIS2Coco.py script
+Model_Name = 'mask_rcnn_logs_rgb_with_aug_0090.h5'
+MODEL_DIR = r'J:\RCNN_OUT' # Directory to save logs and trained model
+
 assert os.path.exists(ROOT_DIR), 'ROOT_DIR does not exist. Did you forget to read the instructions above? ;)'
 
 # Import mrcnn libraries
@@ -31,15 +28,13 @@ import mrcnn.utils as utils
 from mrcnn import visualize
 import mrcnn.model as modellib
 
-# Directory to save logs and trained model
-MODEL_DIR = r'J:\RCNN_OUT'
-
 # Local path to trained weights file
-COCO_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco.h5")
+COCO_MODEL_PATH = os.path.join(COCO_DIR, Model_Name)
 
 # Download COCO trained weights from Releases if needed
 if not os.path.exists(COCO_MODEL_PATH):
-    utils.download_trained_weights(COCO_MODEL_PATH)
+    #utils.download_trained_weights(COCO_MODEL_PATH)
+    print('Does not exsists')
 
 
 class Mask_RCNN(Config):
@@ -59,7 +54,7 @@ class Mask_RCNN(Config):
     IMAGE_MAX_DIM = 256
 
     # You can experiment with this number to see if it improves training
-    STEPS_PER_EPOCH = 2000
+    STEPS_PER_EPOCH = 500
 
     # This is how often validation is run. If you are using too much hard drive space
     # on saved models (in the MODEL_DIR), try making this value larger.
@@ -185,7 +180,6 @@ class CocoLikeDataset(utils.Dataset):
 
         return mask, class_ids
 
-# Prepare dataset
 dataset_train = CocoLikeDataset()
 dataset_train.load_data(trainingJson, trainingDir)
 dataset_train.prepare()
@@ -196,63 +190,59 @@ dataset_val.prepare()
 
 dataset = dataset_train
 
-# Create model in training mode
-model = modellib.MaskRCNN(mode="training", config=config,
-                          model_dir=MODEL_DIR)
 
-# Which weights to start with?
-init_with = "coco"  # imagenet, coco, or last
+# Must call before using the dataset
+dataset.prepare()
 
-if init_with == "imagenet":
-    model.load_weights(model.get_imagenet_weights(), by_name=True)
-elif init_with == "coco":
-    # Load weights trained on MS COCO, but skip layers that
-    # are different due to the different number of classes
-    # See README for instructions to download the COCO weights
-    model.load_weights(COCO_MODEL_PATH, by_name=True,
-                       exclude=["mrcnn_class_logits", "mrcnn_bbox_fc",
-                                "mrcnn_bbox", "mrcnn_mask"])
-elif init_with == "last":
-    # Load the last model you trained and continue training
-    model.load_weights(model.find_last(), by_name=True)
+print("Images: {}\nClasses: {}".format(len(dataset_val.image_ids), dataset_val.class_names))
 
-# Train the head branches
-# Passing layers="heads" freezes all layers except the head
-# layers. You can also pass a regular expression to select
-# which layers to train by name pattern.
-total_time = time.time()
-start_train = time.time()
-model.train(dataset_train, dataset_val,
-            learning_rate=config.LEARNING_RATE,
-            epochs=10,
-            layers='heads',
-            augmentation=augmentation)
-end_train = time.time()
-minutes = round((end_train - start_train) / 60, 2)
-print(f'Training took {minutes} minutes')
+### LOAD MODEL
 
-# Training - Stage 2
-# Finetune layers from ResNet stage 4 and up
-print("Fine tune Resnet stage 4 and up")
-model.train(dataset_train, dataset_val,
-            learning_rate=config.LEARNING_RATE,
-            epochs=20,
-            layers='4+',
-            augmentation=augmentation)
+# Device to load the neural network on.
+# Useful if you're training a model on the same
+# machine, in which case use CPU and leave the
+# GPU for training.
+DEVICE = "/gpu:0"  # /cpu:0 or /gpu:0
 
-# Fine tune all layers
-# Passing layers="all" trains all layers. You can also
-# pass a regular expression to select which layers to
-# train by name pattern.
-start_train = time.time()
-model.train(dataset_train, dataset_val,
-            learning_rate=config.LEARNING_RATE / 10,
-            epochs=30,
-            layers="all",
-            augmentation=augmentation)
-end_train = time.time()
-minutes = round((end_train - start_train) / 60, 2)
-print(f'Training took {minutes} minutes')
+# Inspect the model in training or inference modes
+# values: 'inference' or 'training'
+# TODO: code for 'training' test mode not ready yet
+TEST_MODE = "inference"
 
-minutes = round((end_train - total_time) / 60, 2)
-print(f'Total training took {minutes} minutes')
+# Create model in inference mode
+with tf.device(DEVICE):
+    model = modellib.MaskRCNN(mode="inference", model_dir=MODEL_DIR,
+                              config=config)
+
+# Set weights file path
+
+# Or, uncomment to load the last model you trained
+# weights_path = model.find_last()
+
+# Load weights
+print("Loading weights ", COCO_MODEL_PATH)
+model.load_weights(COCO_MODEL_PATH, by_name=True)
+
+
+# Compute VOC-style Average Precision
+def compute_batch_ap(image_ids):
+    APs = []
+    for image_id in image_ids:
+        # Load image
+        image, image_meta, gt_class_id, gt_bbox, gt_mask =\
+            modellib.load_image_gt(dataset, config,
+                                   image_id, use_mini_mask=False)
+        # Run object detection
+        results = model.detect([image], verbose=0)
+        # Compute AP
+        r = results[0]
+        AP, precisions, recalls, overlaps =\
+            utils.compute_ap(gt_bbox, gt_class_id, gt_mask,
+                              r['rois'], r['class_ids'], r['scores'], r['masks'])
+        APs.append(AP)
+    return APs
+
+# Pick a set of random images
+image_ids = np.random.choice(dataset.image_ids, len(dataset_val.image_ids))
+APs = compute_batch_ap(image_ids)
+print("mAP @ IoU: ", np.mean(APs))
