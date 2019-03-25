@@ -14,3 +14,15 @@ Using the training samples manager, create masks over as many objects as possibl
 ## 2. Export training data
 Export the training data, using the tool 'Export training data for deep learning', I like to use tiff format, as it seems to perform slightly better then compressed jpg's. Set the tile and stride size, or leave them as default. Choose RCNN_Masks as the meta data format and export the tiles.
 ![](assets/export_samples.png)
+
+## 3. Use the ArcGIS2COCO.py script to convert samples to coco format
+Change the base variables to fit your needs. The most important variable to change is the rootDir, change this to the output folder from step 2. I like to run python scripts from PyCharm, from which I can edit and run scripts within the same program. If using plane python, edit the file in a text editor and run 'python ArcGIS2COCO.py' from a cmd window.
+
+## 4. Run the training script
+Again, change the variables to your folders. Either use trainBaseModel.py or trainExtended.py.
+The first one uses 500 training steps and 30 epochs and takes about one hour on a RTX2070 GPU with 1500 sample tiles.
+
+## 5. Test the model
+Using the script CalculateMAPIOU.py to get an mAP @ IuU score on the validation data. Again change the variables and folders to suite your needs and run the script.
+
+## 6. Detect objects using deep learning
