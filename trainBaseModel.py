@@ -6,7 +6,18 @@ import time
 from PIL import Image, ImageDraw
 from imgaug import augmenters as iaa
 
+'''
+Basic training script using a coco format input 
 
+Base code from:
+https://github.com/akTwelve/tutorials/blob/master/mask_rcnn/MaskRCNN_TrainAndInference.ipynb
+
+1. Change ROOT_DIR to folder containing the maskrcnn folder
+2. Change COCO_DIR to ArcGIS output folder
+3. Change MODEL_DIR to a location with free space
+4. Put a pre-trained coco weight file in the ROOT_DIR or change accordingly 
+5. Run
+'''
 
 # Set the ROOT_DIR variable to the root directory of the Mask_RCNN git repo
 ROOT_DIR = r'C:\Users\OterLabb\Documents\Mask_RCNN'
@@ -177,6 +188,7 @@ class CocoLikeDataset(utils.Dataset):
 
         return mask, class_ids
 
+# Prepare dataset
 dataset_train = CocoLikeDataset()
 dataset_train.load_data(trainingJson, trainingDir)
 dataset_train.prepare()
@@ -207,29 +219,15 @@ elif init_with == "last":
     # Load the last model you trained and continue training
     model.load_weights(model.find_last(), by_name=True)
 
-
-# Image Augmentation
-# Right/Left flip 50% of the time
-
-augmentation = iaa.SomeOf((0, 3), [
-    iaa.Fliplr(0.5),
-    iaa.Flipud(0.5),
-    iaa.OneOf([iaa.Affine(rotate=90),
-               iaa.Affine(rotate=180),
-               iaa.Affine(rotate=270)],
-             ),
-    iaa.Affine(scale={"x": (0.8, 1.2), "y": (0.8, 1.2)}),
-    iaa.Multiply((0.8, 1.5)),
-    iaa.GaussianBlur(sigma=(0.0, 5.0))
-])
 # Train the head branches
 # Passing layers="heads" freezes all layers except the head
 # layers. You can also pass a regular expression to select
 # which layers to train by name pattern.
+total_time = time.time()
 start_train = time.time()
 model.train(dataset_train, dataset_val,
             learning_rate=config.LEARNING_RATE,
-            epochs=10 * 3,
+            epochs=10,
             layers='heads',
             augmentation=augmentation)
 end_train = time.time()
@@ -241,7 +239,7 @@ print(f'Training took {minutes} minutes')
 print("Fine tune Resnet stage 4 and up")
 model.train(dataset_train, dataset_val,
             learning_rate=config.LEARNING_RATE,
-            epochs=20 * 3,
+            epochs=20,
             layers='4+',
             augmentation=augmentation)
 
@@ -252,12 +250,12 @@ model.train(dataset_train, dataset_val,
 start_train = time.time()
 model.train(dataset_train, dataset_val,
             learning_rate=config.LEARNING_RATE / 10,
-            epochs=30 * 3,
+            epochs=30,
             layers="all",
             augmentation=augmentation)
 end_train = time.time()
 minutes = round((end_train - start_train) / 60, 2)
 print(f'Training took {minutes} minutes')
 
-# 40, 80, 120
-
+minutes = round((end_train - total_time) / 60, 2)
+print(f'Total training took {minutes} minutes')
