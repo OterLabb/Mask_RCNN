@@ -9,4 +9,4 @@ This is how I got the tool 'Detect objects using deep learning' in ArcGIS Pro to
 
 ## 1. Create masks over the objects of interest
 Using the training samples manager, create masks over as many objects as possible, if your model is performing poorly, think about adding more training samples.
-![](assets/Arcgis_training_samples.png)
+![](assets/training_samples.png)
