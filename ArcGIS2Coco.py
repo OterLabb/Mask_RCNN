@@ -1,8 +1,6 @@
-import sys
 import json
 import os
 import datetime
-import glob
 import random
 import shutil
 from PIL import Image
