@@ -7,7 +7,9 @@ from PIL import Image, ImageDraw
 from imgaug import augmenters as iaa
 
 '''
-Basic training script using a coco format input 
+Extended training script using a coco format input,
+basically just added more training steps and epochs.
+Also augmentation is added. 
 
 Base code from:
 https://github.com/akTwelve/tutorials/blob/master/mask_rcnn/MaskRCNN_TrainAndInference.ipynb
@@ -21,7 +23,7 @@ https://github.com/akTwelve/tutorials/blob/master/mask_rcnn/MaskRCNN_TrainAndInf
 
 # Set the ROOT_DIR variable to the root directory of the Mask_RCNN git repo
 ROOT_DIR = r'C:\Users\OterLabb\Documents\Mask_RCNN'
-COCO_DIR = r'F:\ArcGIS\Semester_Log\OUT_RGB_INT_DSM' # ArcGIS folder containing output from the ArcGIS2Coco.py script
+COCO_DIR = r'F:\ArcGIS\Semester_Log\OUT_RGB'
 assert os.path.exists(ROOT_DIR), 'ROOT_DIR does not exist. Did you forget to read the instructions above? ;)'
 
 # Import mrcnn libraries
@@ -42,8 +44,11 @@ if not os.path.exists(COCO_MODEL_PATH):
     utils.download_trained_weights(COCO_MODEL_PATH)
 
 
-class Mask_RCNN(Config):
-    """Configuration for training on your dataset"""
+class Houses(Config):
+    """Configuration for training on the cigarette butts dataset.
+    Derives from the base Config class and overrides values specific
+    to the cigarette butts dataset.
+    """
     # Give the configuration a recognizable name
     NAME = "Logs_RGB_with_Aug"
 
@@ -80,7 +85,7 @@ class Mask_RCNN(Config):
     #MEAN_PIXEL = np.array([123.7, 116.8, 103.9, 100])
 
 
-config = Mask_RCNN()
+config = Houses()
 config.display()
 
 # Create json variables
@@ -185,7 +190,6 @@ class CocoLikeDataset(utils.Dataset):
 
         return mask, class_ids
 
-# Prepare dataset
 dataset_train = CocoLikeDataset()
 dataset_train.load_data(trainingJson, trainingDir)
 dataset_train.prepare()
@@ -216,6 +220,20 @@ elif init_with == "last":
     # Load the last model you trained and continue training
     model.load_weights(model.find_last(), by_name=True)
 
+
+# Image Augmentation
+augmentation = iaa.SomeOf((0, 3), [
+    iaa.Fliplr(0.5),
+    iaa.Flipud(0.5),
+    iaa.OneOf([iaa.Affine(rotate=90),
+               iaa.Affine(rotate=180),
+               iaa.Affine(rotate=270)],
+             ),
+    iaa.Affine(scale={"x": (0.8, 1.2), "y": (0.8, 1.2)}),
+    iaa.Multiply((0.8, 1.5)),
+    iaa.GaussianBlur(sigma=(0.0, 5.0))
+])
+
 # Train the head branches
 # Passing layers="heads" freezes all layers except the head
 # layers. You can also pass a regular expression to select
@@ -224,8 +242,9 @@ total_time = time.time()
 start_train = time.time()
 model.train(dataset_train, dataset_val,
             learning_rate=config.LEARNING_RATE,
-            epochs=10,
-            layers='heads')
+            epochs=10 * 3,
+            layers='heads',
+            augmentation=augmentation)
 end_train = time.time()
 minutes = round((end_train - start_train) / 60, 2)
 print(f'Training took {minutes} minutes')
@@ -235,8 +254,9 @@ print(f'Training took {minutes} minutes')
 print("Fine tune Resnet stage 4 and up")
 model.train(dataset_train, dataset_val,
             learning_rate=config.LEARNING_RATE,
-            epochs=20,
-            layers='4+')
+            epochs=20 * 3,
+            layers='4+',
+            augmentation=augmentation)
 
 # Fine tune all layers
 # Passing layers="all" trains all layers. You can also
@@ -245,8 +265,9 @@ model.train(dataset_train, dataset_val,
 start_train = time.time()
 model.train(dataset_train, dataset_val,
             learning_rate=config.LEARNING_RATE / 10,
-            epochs=30,
-            layers="all")
+            epochs=30 * 3,
+            layers="all",
+            augmentation=augmentation)
 end_train = time.time()
 minutes = round((end_train - start_train) / 60, 2)
 print(f'Training took {minutes} minutes')
