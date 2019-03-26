@@ -53,6 +53,9 @@ for (i in unique(one_df$L1)){
   # Add a line through all points
   lines(dat$Step,dat$Value)
 
+  # Alternative line
+  # abline(lm(dat$Value~Adat$Step),col='red')
+
   # Create X and Y variables for cleaner view in script
   x <- dat$Step
   y <- dat$Value
