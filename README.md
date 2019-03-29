@@ -26,3 +26,5 @@ The first one uses 500 training steps and 30 epochs and takes about one hour on 
 Using the script CalculateMAPIOU.py to get an mAP @ IuU score on the validation data. Again change the variables and folders to suite your needs and run the script.
 
 ## 6. Detect objects using deep learning
+Change the .emd file to suit your needs, copy the trained .h5 file to the the root dir and change the 'ModelFile' parameter in the .emd file. Use the tool 'Detect objects using deep learning' and enter your raster to predict on, and your .emd file.
+![](assets/detected_house.png)
