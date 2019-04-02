@@ -27,4 +27,4 @@ Using the script CalculateMAPIOU.py to get an mAP @ IuU score on the validation 
 
 ## 6. Detect objects using deep learning
 Change the .emd file to suit your needs, copy the trained .h5 file to the the root dir and change the 'ModelFile' parameter in the .emd file. Use the tool 'Detect objects using deep learning' and enter your raster to predict on, and your .emd file.
-![](assets/training_samples.png)
+![](assets/training_predicted.png)
