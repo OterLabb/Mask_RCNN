@@ -3,6 +3,10 @@
 This is a fork of the original Mask R-CNN by matterport, see https://github.com/matterport/Mask_RCNN for installation, requirements etc..
 Some additional scripts are added here which I used to train, evaluate and convert output from ArcGIS to use with matterport's version of Mask R-CNN
 
+Tensorflow-gpu: 1.12.0
+CUDA: V10.0.130
+Cudnn: v7.3.1.20
+
 # Steps to do deep learning object detection in ArcGIS Pro
 
 This is how I got the tool 'Detect objects using deep learning' in ArcGIS Pro to work using houses as an example.
